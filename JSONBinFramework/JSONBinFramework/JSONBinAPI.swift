@@ -18,7 +18,11 @@ protocol JSONBinAPI  {
     var secretKey: String { get }
     
     
-    func createBin(name: String, privateBin: Bool, collectionId: String?)
+    func createBin(name: String,
+                   privateBin: Bool,
+                   collectionId: String?,
+                   data: Data,
+                   closure: @escaping (Result<Bool, Error>) -> Void)
     func readBin(id: String, closure: Closure )
     
 }

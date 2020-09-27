@@ -39,7 +39,8 @@ extension JSONBinAPIClient: HTTPClient {
     
     func get() { }
     
-    func post(_ urlRequest: URLRequest) {
+    func post(_ urlRequest: URLRequest,
+              closure: @escaping (Result<Data, JSONBinAPIError>) -> Void) {
         let session = URLSession.shared
         session.configuration.waitsForConnectivity = true
         
@@ -49,14 +50,16 @@ extension JSONBinAPIClient: HTTPClient {
         let dataTask = session.dataTask(with: request) { data, response, error in
             
             if let error = error {
-                print(error)
+                closure(.failure(.error(error)))
+                return
             }
             
-            if let data = data, let someValue = String(data: data,
-                                                       encoding: .utf8) {
-                print(someValue)
+            guard let data = data else {
+                closure(.failure(.noData))
+                return
             }
             
+            closure(.success(data))
         }
         
         dataTask.resume()
@@ -78,7 +81,9 @@ extension JSONBinAPIClient: JSONBinAPI {
     
     public func createBin(name: String,
                    privateBin: Bool,
-                   collectionId: String?) {
+                   collectionId: String?,
+                   data: Data,
+                   closure: @escaping (Result<Bool, Error>) -> Void) {
         
         guard let url = getComponents.url else {
             print("unable to create url with given components")
@@ -90,12 +95,21 @@ extension JSONBinAPIClient: JSONBinAPI {
         request.setValue(secretKey, forHeader: .secretKey)
         request.setValue(name, forHeader: .name)
         request.setValue(privateBin.description, forHeader: .private)
+        
         if let collectionId = collectionId {
             request.setValue(collectionId, forHeader: .collectionId)
         }
-        request.httpBody = "{\"title\":\"hola\"}".data(using: .utf8)
         
-        post(request)
+        request.httpBody = data
+        
+        post(request) { result in
+            switch result {
+            case .success(_):
+                closure(.success(true))
+            case .failure(let error):
+                closure(.failure(error))
+            }
+        }
     }
     
     func readBin(id: String, closure: Closure ) {
